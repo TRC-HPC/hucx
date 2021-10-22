@@ -1,6 +1,7 @@
 /**
 * Copyright (C) Mellanox Technologies Ltd. 2001-2019.  ALL RIGHTS RESERVED.
 * Copyright (C) UT-Battelle, LLC. 2014. ALL RIGHTS RESERVED.
+* Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
 * See file LICENSE for terms.
 */
 
@@ -140,6 +141,12 @@ char *ucs_strndup(const char *src, size_t n, const char *name);
 #define ucs_strndup(_src, _n, ...)                 strndup(_src, _n)
 
 #endif /* ENABLE_MEMTRACK */
+
+#define UCS_ALLOC_CHECK(size, name) ({ \
+    void* ptr = ucs_malloc(size, name); \
+    if (ptr == NULL) return UCS_ERR_NO_MEMORY; \
+    ptr; \
+})
 
 END_C_DECLS
 

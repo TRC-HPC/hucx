@@ -4,6 +4,7 @@
 # Copyright (C) The University of Tennessee and The University
 #               of Tennessee Research Foundation. 2016. ALL RIGHTS RESERVED.
 # Copyright (C) ARM Ltd. 2016-2019.  ALL RIGHTS RESERVED.
+# Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
 # See file LICENSE for terms.
 #
 AC_PREREQ([2.63])
@@ -175,6 +176,7 @@ AS_IF([test "x$with_docs_only" = xyes],
      AM_CONDITIONAL([HAVE_MLX5_HW], [false])
      AM_CONDITIONAL([HAVE_MLX5_HW_UD], [false])
      AM_CONDITIONAL([HAVE_MLX5_DV], [false])
+     AM_CONDITIONAL([HAVE_HNS_ROCE], [false])
      AM_CONDITIONAL([HAVE_DEVX], [false])
      AM_CONDITIONAL([HAVE_EXP], [false])
      AM_CONDITIONAL([HAVE_TL_RC], [false])

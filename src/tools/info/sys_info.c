@@ -1,6 +1,7 @@
 /**
 * Copyright (C) Mellanox Technologies Ltd. 2001-2015.  ALL RIGHTS RESERVED.
 * Copyright (C) Shanghai Zhaoxin Semiconductor Co., Ltd. 2020. ALL RIGHTS RESERVED.
+* Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
 *
 * See file LICENSE for terms.
 */
@@ -91,6 +92,7 @@ void print_sys_info()
     printf("# Timer frequency: %.3f MHz\n", ucs_get_cpu_clocks_per_sec() / 1e6);
     printf("# CPU vendor: %s\n", cpu_vendor_names[ucs_arch_get_cpu_vendor()]);
     printf("# CPU model: %s\n", cpu_model_names[ucs_arch_get_cpu_model()]);
+    printf("# CPU flags: 0x%08X\n", ucs_arch_get_cpu_flag());
     ucs_arch_print_memcpy_limits(&ucs_global_opts.arch);
     printf("# Memcpy bandwidth:\n");
     for (size = 4096; size <= 256 * UCS_MBYTE; size *= 2) {

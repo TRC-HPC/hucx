@@ -182,3 +182,67 @@ To reference the UCX website:
 * [x86_64](https://en.wikipedia.org/wiki/X86-64)
 * [Power8/9](https://www.ibm.com/support/knowledgecenter/en/POWER9/p9hdx/POWER9welcome.htm)
 * [Arm v8](https://www.arm.com/products/silicon-ip-cpu)
+
+## Huawei Optimization Introduction
+
+Based on performance consideration, UCX **DO NOT** provide the functionalities related to transmission security.
+
+There are three optimized collective operations:
+
+- MPI_Allreduce
+- MPI_Bcast
+- MPI_Barrier
+- MPI_Alltoallv
+
+Select specific algorithm with parameters which is showed in the table below.
+
+Bcast:
+
+|  UCX_BUILTIN_BCAST_ALGORITHM   | Algorithm  |
+| ---- | ---- |
+| 1  | Binomial tree |
+| 2  | Topo-aware tree (Binomial tree + Binomial tree) |
+| 3  | Topo-aware tree (K-nomial tree + Binomial tree) |
+| 4  | Topo-aware tree (K-nomial tree + K-nomial tree) |
+| 5  | Node-aware In Network Computing (INC) |
+
+Allreduce:
+
+|  UCX_BUILTIN_ALLREDUCE_ALGORITHM   | Algorithm  |
+|  ----  | ----  |
+| 1  | Recursive |
+| 2  | Topo-aware Recursive (ppn inside node) |
+| 3  | Topo-aware Recursive (ppn inside socket) |
+| 4  | Ring |
+| 5  | Topo-aware Recursive (with K-nomial tree for intra node) |
+| 6  | Topo-aware Recursive (with K-nomial tree for intra node, ppn inside socket) |
+| 7  | Topo-aware FANIN-FANOUT (with K-nomial tree for intra node, ppn inside node) |
+| 8  | Topo-aware FANIN-FANOUT (with K-nomial tree for intra node, ppn inside socket) |
+| 9  | Node-aware In Network Computing (INC) |
+| 10 | Socket-aware In Network Computing (INC) |
+| 11 | Node-Aware Parallel algorithm (NAP) |
+| 12 | Rabenseifner's algorithm (binary block) |
+| 13 | Rabenseifner's algorithm (node aware binary block) |
+| 14 | Rabenseifner's algorithm (socket aware binary block) |
+
+Barrier:
+
+|  UCX_BUILTIN_BARRIER_ALGORITHM   | Algorithm  |
+|  ----  | ----  |
+| 1  | Recursive |
+| 2  | Topo-aware Recursive (ppn inside node) |
+| 3  | Topo-aware Recursive (ppn inside socket) |
+| 4  | Topo-aware Recursive (with K-nomial tree for intra node) |
+| 5  | Topo-aware Recursive (with K-nomial tree for intra node, ppn inside socket) |
+| 6  | Topo-aware FANIN-FANOUT (with K-nomial tree for intra node, ppn inside node) |
+| 7  | Topo-aware FANIN-FANOUT (with K-nomial tree for intra node, ppn inside socket) |
+| 8  | Node-aware In Network Computing (INC) |
+| 9  | Socket-aware In Network Computing (INC) |
+| 10 | Node-Aware Parallel algorithm (NAP) |
+
+Alltoallv:
+
+|  UCX_BUILTIN_ALLTOALLV_ALGORITHM   | Algorithm  |
+|  ----  | ----  |
+| 1  | Throttled scattered destination |
+| 2  | gatherv+alltoallv+scatterv |

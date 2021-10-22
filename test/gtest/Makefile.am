@@ -5,6 +5,7 @@
 # Copyright (C) Los Alamos National Security, LLC. 2018 ALL RIGHTS RESERVED.
 # Copyright (C) Advanced Micro Devices, Inc. 2019. ALL RIGHTS RESERVED.
 # Copyright (C) ARM Ltd. 2020.  ALL RIGHTS RESERVED.
+# Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
 #
 # See file LICENSE for terms.
 #
@@ -48,7 +49,14 @@ gtest_LDADD = \
 	$(top_builddir)/src/ucs/libucs.la \
 	$(top_builddir)/src/uct/libuct.la \
 	$(top_builddir)/src/ucm/libucm.la \
-	$(top_builddir)/src/ucp/libucp.la \
+	$(top_builddir)/src/ucp/libucp.la 
+
+if HAVE_UCG
+gtest_LDADD += \
+    $(top_builddir)/src/ucg/libucg.la
+endif
+
+gtest_LDADD += \
 	$(top_builddir)/src/tools/perf/lib/libucxperf.la \
 	$(OPENMP_CFLAGS) \
 	$(GTEST_LIBS)

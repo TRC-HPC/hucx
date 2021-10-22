@@ -2,6 +2,7 @@
  * Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
  * Copyright (C) ARM Ltd. 2016.  ALL RIGHTS RESERVED.
  * Copyright (C) NVIDIA Corporation. 2019.  ALL RIGHTS RESERVED.
+ * Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
  *
  * See file LICENSE for terms.
  */
@@ -27,7 +28,7 @@
 
 #define UCP_RSC_CONFIG_ALL    "all"
 
-ucp_am_handler_t ucp_am_handlers[UCP_AM_ID_LAST] = {{0, NULL, NULL}};
+ucp_am_handler_t ucp_am_handlers[UCP_AM_ID_MAX] = {{0, NULL, NULL}};
 
 static const char *ucp_atomic_modes[] = {
     [UCP_ATOMIC_MODE_CPU]    = "cpu",
@@ -361,6 +362,7 @@ const char *ucp_feature_str[] = {
     [ucs_ilog2(UCP_FEATURE_WAKEUP)] = "UCP_FEATURE_WAKEUP",
     [ucs_ilog2(UCP_FEATURE_STREAM)] = "UCP_FEATURE_STREAM",
     [ucs_ilog2(UCP_FEATURE_AM)]     = "UCP_FEATURE_AM",
+    [ucs_ilog2(UCP_FEATURE_GROUPS)] = "UCP_FEATURE_GROUPS",
     NULL
 };
 
@@ -1615,6 +1617,8 @@ ucs_status_t ucp_init_version(unsigned api_major_version, unsigned api_minor_ver
         ucp_config_release(dfl_config);
     }
 
+    context->last_am_id = UCP_AM_ID_LAST;
+    ucs_list_head_init(&context->extensions);
     ucs_debug("created ucp context %p [%d mds %d tls] features 0x%"PRIx64
               " tl bitmap 0x%"PRIx64, context, context->num_mds,
               context->num_tls, context->config.features, context->tl_bitmap);
@@ -1636,10 +1640,35 @@ err:
 
 void ucp_cleanup(ucp_context_h context)
 {
+    while (!ucs_list_is_empty(&context->extensions)) {
+        ucs_free(ucs_list_extract_head(&context->extensions, ucp_context_extension_t, list));
+    }
     ucp_free_resources(context);
     ucp_free_config(context);
     UCP_THREAD_LOCK_FINALIZE(&context->mt_lock);
     ucs_free(context);
+}
+
+ucs_status_t ucp_extend(ucp_context_h context, size_t extension_ctx_length,
+                        ucp_extension_init_f init, ucp_extension_cleanup_f cleanup,
+                        size_t *extension_ctx_offset_in_worker, unsigned *am_id)
+{
+    if (context->last_am_id == UCP_AM_ID_MAX) {
+        return UCS_ERR_NO_RESOURCE;
+    }
+
+    unsigned dummy;
+    size_t base_worker_size         = ucp_worker_base_size(context, &dummy);
+    ucp_context_extension_t *ext    = UCS_ALLOC_CHECK(sizeof(*ext), "context extension");
+    ext->init                       = init;
+    ext->cleanup                    = cleanup;
+    ext->worker_offset              = base_worker_size + context->extension_size;
+    context->extension_size        += extension_ctx_length;
+    *extension_ctx_offset_in_worker = ext->worker_offset;
+    *am_id                          = context->last_am_id++;
+
+    ucs_list_add_tail(&context->extensions, &ext->list);
+    return UCS_OK;
 }
 
 void ucp_dump_payload(ucp_context_h context, char *buffer, size_t max,

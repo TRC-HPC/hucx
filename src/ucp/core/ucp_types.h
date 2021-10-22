@@ -1,5 +1,6 @@
 /**
  * Copyright (C) Mellanox Technologies Ltd. 2001-2017.  ALL RIGHTS RESERVED.
+ * Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
  *
  * See file LICENSE for terms.
  */
@@ -111,7 +112,8 @@ typedef enum {
                                           defined AM */
     UCP_AM_ID_SINGLE_REPLY      =  26, /* Single fragment user defined AM
                                           carrying remote ep for reply */
-    UCP_AM_ID_LAST
+    UCP_AM_ID_LAST,
+    UCP_AM_ID_MAX               =  32  /* Total IDs available for pre-registration */
 } ucp_am_id_t;
 
 
@@ -150,5 +152,9 @@ typedef void (*ucp_am_tracer_t)(ucp_worker_h worker, uct_am_trace_type_t type,
  */
 typedef void (*ucp_request_callback_t)(ucp_request_t *req);
 
+/**
+ * Internal callback for UCP requests for collective operations
+ */
+typedef void (*ucp_request_collective_callback_t)(void *request, ucs_status_t status);
 
 #endif

@@ -1,6 +1,7 @@
 /**
  * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
+ * Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
  * See file LICENSE for terms.
  */
 
@@ -153,7 +154,7 @@ ucs_status_t print_ucp_info(int print_opts,
         print_resource_usage(&usage, "UCP context");
     }
 
-    if (!(print_opts & (PRINT_UCP_WORKER|PRINT_UCP_EP))) {
+    if (!(print_opts & (PRINT_UCP_WORKER|PRINT_UCP_EP|PRINT_UCG|PRINT_UCG_TOPO))) {
         goto out_cleanup_context;
     }
 

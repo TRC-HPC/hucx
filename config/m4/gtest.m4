@@ -1,5 +1,6 @@
 # Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
 # Copyright (C) UT-Battelle, LLC. 2015. ALL RIGHTS RESERVED.
+# Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
 # See file LICENSE for terms.
 #
 
@@ -20,4 +21,5 @@ AC_ARG_ENABLE([gtest],
 AC_MSG_CHECKING([for using Google C++ Testing Framework])
 AC_MSG_RESULT([$enable_gtest])
 AM_CONDITIONAL([HAVE_GTEST],[test "x$enable_gtest" = "xyes"])
+AC_DEFINE([ENABLE_GTEST], [1], [enable gtest])
 ])

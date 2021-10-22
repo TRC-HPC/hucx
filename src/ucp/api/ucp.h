@@ -3,6 +3,7 @@
 * Copyright (C) UT-Battelle, LLC. 2014-2017. ALL RIGHTS RESERVED.
 * Copyright (C) ARM Ltd. 2016-2017.  ALL RIGHTS RESERVED.
 * Copyright (C) Los Alamos National Security, LLC. 2018 ALL RIGHTS RESERVED.
+* Copyright (C) Huawei Technologies Co.,Ltd. 2021. ALL RIGHTS RESERVED.
 * See file LICENSE for terms.
 */
 
@@ -148,8 +149,10 @@ enum ucp_feature {
     UCP_FEATURE_WAKEUP       = UCS_BIT(4),  /**< Request interrupt
                                                  notification support */
     UCP_FEATURE_STREAM       = UCS_BIT(5),  /**< Request stream support */
-    UCP_FEATURE_AM           = UCS_BIT(6)   /**< Request Active Message
+    UCP_FEATURE_AM           = UCS_BIT(6),  /**< Request Active Message
                                                  support */
+    UCP_FEATURE_GROUPS       = UCS_BIT(7)   /**< Request Collective
+                                                 operations support */
 };
 
 
@@ -1670,6 +1673,13 @@ static inline ucs_status_t ucp_init(const ucp_params_t *params,
  *                         "UCP application context".
  */
 void ucp_cleanup(ucp_context_h context_p);
+
+
+typedef ucs_status_t (*ucp_extension_init_f)    (void *ctx);
+typedef void         (*ucp_extension_cleanup_f) (void *ctx);
+ucs_status_t ucp_extend(ucp_context_h context, size_t extension_ctx_length,
+                        ucp_extension_init_f init, ucp_extension_cleanup_f cleanup,
+                        size_t *extension_ctx_offset_in_worker, unsigned *am_id);
 
 
 /**
