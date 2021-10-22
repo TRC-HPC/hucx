@@ -1,5 +1,6 @@
 /**
  * Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
+ * Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
  *
  * See file LICENSE for terms.
  */
@@ -68,10 +69,16 @@ uct_ud_send_skb_t *uct_ud_iface_get_tx_skb(uct_ud_iface_t *iface,
 }
 
 static UCS_F_ALWAYS_INLINE void
-uct_ud_skb_release(uct_ud_send_skb_t *skb, int is_inline)
+uct_ud_skb_release(uct_ud_send_skb_t *skb, int is_inline, int dummy_ack, uct_ud_ep_t *ep)
 {
     ucs_assert(!(skb->flags & UCT_UD_SEND_SKB_FLAG_INVALID));
     skb->flags = UCT_UD_SEND_SKB_FLAG_INVALID;
+
+#if HAVE_HNS_ROCE
+    if (dummy_ack) {
+        ucs_queue_push(&ep->pending_skb, &skb->queue);
+    } else 
+#endif
     if (is_inline) {
         ucs_mpool_put_inline(skb);
     } else {

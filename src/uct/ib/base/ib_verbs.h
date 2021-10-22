@@ -1,8 +1,8 @@
 /**
 * Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
 * Copyright (C) UT-Battelle, LLC. 2014. ALL RIGHTS RESERVED.
-* Copyright (C) 2021 Broadcom. ALL RIGHTS RESERVED. The term “Broadcom”
-* refers to Broadcom Inc. and/or its subsidiaries.
+* Copyright (C) 2021 Broadcom. ALL RIGHTS RESERVED. The term “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+* Copyright (C) Huawei Technologies Co., Ltd. 2021.  ALL RIGHTS RESERVED.
 *
 * See file LICENSE for terms.
 */
@@ -96,12 +96,31 @@ static inline ucs_status_t uct_ib_query_device(struct ibv_context *ctx,
 
 typedef struct ibv_device_attr_ex uct_ib_device_attr;
 
+/**
+ * @return true if device name begins with "hns".
+ */
+static inline int uct_ib_device_is_hns(struct ibv_context *ctx)
+{
+#if HAVE_HNS_ROCE
+#define UCT_IB_DEVICE_HNS "hns"
+#define UCT_IB_DEVICE_HNS_LEN 3
+    return !strncmp(ibv_get_device_name(ctx->device), UCT_IB_DEVICE_HNS, UCT_IB_DEVICE_HNS_LEN);
+#else
+    return 0;
+#endif
+}
+
 static inline ucs_status_t uct_ib_query_device(struct ibv_context *ctx,
                                                uct_ib_device_attr* attr) {
     int ret;
 
     attr->comp_mask = 0;
-    ret = ibv_query_device_ex(ctx, NULL, attr);
+    if (uct_ib_device_is_hns(ctx)) {
+        memset(attr, 0, sizeof(*attr));
+        ret = ibv_query_device(ctx, &attr->orig_attr);
+    } else {
+        ret = ibv_query_device_ex(ctx, NULL, attr);
+    }
     if (ret != 0) {
         ucs_error("ibv_query_device_ex(%s) returned %d: %m",
                   ibv_get_device_name(ctx->device), ret);

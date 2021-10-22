@@ -2,6 +2,7 @@
 # Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
 # Copyright (C) UT-Battelle, LLC. 2014-2015. ALL RIGHTS RESERVED.
 # Copyright (C) The University of Tennessee and the University of Tennessee Research Foundation. 2016. ALL RIGHTS RESERVED.
+# Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
 #
 # See file LICENSE for terms.
 #
@@ -409,6 +410,20 @@ AS_IF([test "x$with_ib" = "xyes"],
                [AC_DEFINE([HAVE_IBV_DM], 1, [Device Memory support])],
                [], [[#include <infiniband/verbs.h>]])])
 
+       # Hns RoCE support
+       AC_CHECK_FILE(/usr/lib64/libibverbs/libhns-rdmav25.so,
+       [
+            AC_CHECK_FILE(/usr/lib/modules/$(uname --release)/updates/drivers/infiniband/hw/hns/hns-roce-cae.ko,
+            [
+                AC_CHECK_FILE(/usr/lib/modules/$(uname --release)/updates/drivers/infiniband/hw/hns/hns-roce-hw-v2.ko,
+                [
+                    with_hns_roce=yes
+                ],[with_hns_roce=no])
+            ],[with_hns_roce=no])
+       ],[with_hns_roce=no])
+       AS_IF([test "x$with_hns_roce" != xno],
+           [AC_DEFINE([HAVE_HNS_ROCE], 1, [Hns RoCE support])])
+           
        AC_CHECK_DECLS([ibv_cmd_modify_qp],
                       [], [], [[#include <infiniband/driver.h>]])
 
@@ -441,6 +456,7 @@ AM_CONDITIONAL([HAVE_TL_DC],   [test "x$with_dc" != xno])
 AM_CONDITIONAL([HAVE_DC_DV],   [test -n "$have_dc_dv"])
 AM_CONDITIONAL([HAVE_DC_EXP],  [test -n "$have_dc_exp"])
 AM_CONDITIONAL([HAVE_TL_UD],   [test "x$with_ud" != xno])
+AM_CONDITIONAL([HAVE_HNS_ROCE],[test "x$with_hns_roce" != xno])
 AM_CONDITIONAL([HAVE_MLX5_HW], [test "x$with_mlx5_hw" != xno])
 AM_CONDITIONAL([HAVE_MLX5_DV], [test "x$with_mlx5_dv" = xyes])
 AM_CONDITIONAL([HAVE_DEVX],    [test -n "$have_devx"])

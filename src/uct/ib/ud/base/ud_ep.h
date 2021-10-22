@@ -1,5 +1,6 @@
 /**
 * Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
+* Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
 *
 * See file LICENSE for terms.
 */
@@ -260,6 +261,9 @@ struct uct_ud_ep {
     uint8_t               path_index;
     ucs_wtimer_t          timer;
     ucs_time_t            close_time;   /* timestamp of closure */
+#if HAVE_HNS_ROCE
+    ucs_queue_head_t pending_skb;
+#endif
     UCS_STATS_NODE_DECLARE(stats)
     UCT_UD_EP_HOOK_DECLARE(timer_hook)
 #if ENABLE_DEBUG_DATA

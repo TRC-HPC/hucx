@@ -1,5 +1,6 @@
 /**
 * Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
+* Copyright (C) Huawei Technologies Co., Ltd. 2019-2021. ALL RIGHTS RESERVED.
 *
 * See file LICENSE for terms.
 */
@@ -169,7 +170,11 @@ uct_ud_iface_create_qp(uct_ud_iface_t *self, const uct_ud_iface_config_t *config
         return status;
     }
 
+#if HAVE_HNS_ROCE
+    self->config.max_inline = 0;
+#else
     self->config.max_inline = qp_init_attr.cap.max_inline_data;
+#endif
 
     memset(&qp_attr, 0, sizeof(qp_attr));
     /* Modify QP to INIT state */
@@ -818,7 +823,7 @@ void uct_ud_iface_dispatch_async_comps_do(uct_ud_iface_t *iface)
         ucs_assert(!(skb->flags & UCT_UD_SEND_SKB_FLAG_RESENDING));
         cdesc = uct_ud_comp_desc(skb);
         uct_ud_iface_dispatch_comp(iface, cdesc->comp, cdesc->status);
-        uct_ud_skb_release(skb, 0);
+        uct_ud_skb_release(skb, 0, 0, NULL);
     }
 }
 
@@ -827,7 +832,7 @@ static void uct_ud_iface_free_async_comps(uct_ud_iface_t *iface)
     uct_ud_send_skb_t *skb;
 
     ucs_queue_for_each_extract(skb, &iface->tx.async_comp_q, queue, 1) {
-        uct_ud_skb_release(skb, 0);
+        uct_ud_skb_release(skb, 0, 0, NULL);
     }
 }
 
@@ -1002,7 +1007,7 @@ void uct_ud_iface_ctl_skb_complete(uct_ud_iface_t *iface,
         ucs_assert(skb->flags & UCT_UD_SEND_SKB_FLAG_CTL_ACK);
     }
 
-    uct_ud_skb_release(skb, 0);
+    uct_ud_skb_release(skb, 0, 0, NULL);
 
 }
 

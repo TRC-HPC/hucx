@@ -1,7 +1,7 @@
 /**
 * Copyright (C) Mellanox Technologies Ltd. 2001-2014.  ALL RIGHTS RESERVED.
-* Copyright (C) 2021 Broadcom. ALL RIGHTS RESERVED. The term “Broadcom”
-* refers to Broadcom Inc. and/or its subsidiaries.
+* Copyright (C) 2021 Broadcom. ALL RIGHTS RESERVED. The term “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+* Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
 *
 * See file LICENSE for terms.
 */
@@ -81,7 +81,11 @@ ucs_config_field_t uct_ib_iface_config_table[] = {
    "Max number of receive completions to pick during TX poll",
    ucs_offsetof(uct_ib_iface_config_t, tx.max_poll), UCS_CONFIG_TYPE_UINT},
 
+#if HAVE_HNS_ROCE
+  {"TX_MIN_INLINE", "32",
+#else
   {"TX_MIN_INLINE", "64",
+#endif
    "Bytes to reserve in send WQE for inline data. Messages which are small\n"
    "enough will be sent inline.",
    ucs_offsetof(uct_ib_iface_config_t, tx.min_inline), UCS_CONFIG_TYPE_MEMUNITS},
@@ -949,15 +953,21 @@ ucs_status_t uct_ib_verbs_create_cq(uct_ib_iface_t *iface, uct_ib_dir_t dir,
 #if HAVE_DECL_IBV_CREATE_CQ_ATTR_IGNORE_OVERRUN
     struct ibv_cq_init_attr_ex cq_attr = {};
 
-    cq_attr.cqe         = init_attr->cq_len[dir];
-    cq_attr.channel     = iface->comp_channel;
-    cq_attr.comp_vector = preferred_cpu;
-    if (init_attr->flags & UCT_IB_CQ_IGNORE_OVERRUN) {
-        cq_attr.comp_mask = IBV_CQ_INIT_ATTR_MASK_FLAGS;
-        cq_attr.flags     = IBV_CREATE_CQ_ATTR_IGNORE_OVERRUN;
-    }
+    if (uct_ib_device_is_hns(dev->ibv_context)) {
+        iface->config.max_inl_cqe[dir] = 0;
+        cq = ibv_create_cq(dev->ibv_context, init_attr->cq_len[dir], NULL,
+                           iface->comp_channel, preferred_cpu);
+    } else {
+        cq_attr.cqe         = init_attr->cq_len[dir];
+        cq_attr.channel     = iface->comp_channel;
+        cq_attr.comp_vector = preferred_cpu;
+        if (init_attr->flags & UCT_IB_CQ_IGNORE_OVERRUN) {
+            cq_attr.comp_mask = IBV_CQ_INIT_ATTR_MASK_FLAGS;
+            cq_attr.flags     = IBV_CREATE_CQ_ATTR_IGNORE_OVERRUN;
+        }
 
-    cq = ibv_cq_ex_to_cq(ibv_create_cq_ex(dev->ibv_context, &cq_attr));
+        cq = ibv_cq_ex_to_cq(ibv_create_cq_ex(dev->ibv_context, &cq_attr));
+    }
     if (!cq && ((errno == EOPNOTSUPP) || (errno == ENOSYS)))
 #endif
     {

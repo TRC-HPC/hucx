@@ -1,5 +1,6 @@
 /**
  * Copyright (C) Mellanox Technologies Ltd. 2001-2019.  ALL RIGHTS RESERVED.
+ * Copyright (C) Huawei Technologies Co., Ltd. 2021. ALL RIGHTS RESERVED.
  *
  * See file LICENSE for terms.
  */
@@ -165,7 +166,7 @@ uct_ud_skb_is_completed(uct_ud_send_skb_t *skb, uct_ud_psn_t ack_psn)
 static UCS_F_ALWAYS_INLINE void
 uct_ud_ep_window_release_inline(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
                                 uct_ud_psn_t ack_psn, ucs_status_t status,
-                                int is_async, int invalidate_resend)
+                                int is_async, int invalidate_resend, int dummy_ack)
 {
     uct_ud_send_skb_t *skb;
 
@@ -177,12 +178,12 @@ uct_ud_ep_window_release_inline(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
         }
         if (ucs_likely(!(skb->flags & UCT_UD_SEND_SKB_FLAG_COMP))) {
             /* fast path case: skb without completion callback */
-            uct_ud_skb_release(skb, 1);
+            uct_ud_skb_release(skb, 1, dummy_ack, ep);
         } else if (ucs_likely(!is_async)) {
             /* dispatch user completion immediately */
             uct_ud_iface_dispatch_comp(iface, uct_ud_comp_desc(skb)->comp,
                                        status);
-            uct_ud_skb_release(skb, 1);
+            uct_ud_skb_release(skb, 1, dummy_ack, ep);
         } else {
             /* Don't call user completion from async context. Instead, put
              * it on a queue which will be progressed from main thread.
@@ -197,14 +198,14 @@ uct_ud_ep_window_release(uct_ud_ep_t *ep, ucs_status_t status, int is_async)
 {
     uct_ud_iface_t *iface = ucs_derived_of(ep->super.super.iface, uct_ud_iface_t);
 
-    uct_ud_ep_window_release_inline(iface, ep, ep->tx.acked_psn, status, is_async, 0);
+    uct_ud_ep_window_release_inline(iface, ep, ep->tx.acked_psn, status, is_async, 0, 0);
 }
 
 void uct_ud_ep_window_release_completed(uct_ud_ep_t *ep, int is_async)
 {
     uct_ud_iface_t *iface = ucs_derived_of(ep->super.super.iface, uct_ud_iface_t);
 
-    uct_ud_ep_window_release_inline(iface, ep, ep->tx.acked_psn, UCS_OK, is_async, 1);
+    uct_ud_ep_window_release_inline(iface, ep, ep->tx.acked_psn, UCS_OK, is_async, 1, 0);
 }
 
 static void uct_ud_ep_purge_outstanding(uct_ud_ep_t *ep)
@@ -344,6 +345,19 @@ static void uct_ud_ep_timer(ucs_wtimer_t *self)
     uct_ud_ep_timer_backoff(ep);
 }
 
+#if HAVE_HNS_ROCE
+static void uct_ud_ep_pskb_free(uct_ud_ep_t *ep)
+{
+    uct_ud_send_skb_t *skb;
+
+    ucs_queue_for_each_extract(skb, &ep->pending_skb, queue, 1) {
+        ucs_mpool_put(skb);
+    }
+}
+#else
+#define uct_ud_ep_pskb_free(ep)
+#endif
+
 UCS_CLASS_INIT_FUNC(uct_ud_ep_t, uct_ud_iface_t *iface,
                     const uct_ep_params_t* params)
 {
@@ -360,6 +374,9 @@ UCS_CLASS_INIT_FUNC(uct_ud_ep_t, uct_ud_iface_t *iface,
     uct_ud_iface_add_ep(iface, self);
     self->tx.tick = iface->tx.tick;
     ucs_wtimer_init(&self->timer, uct_ud_ep_timer);
+#if HAVE_HNS_ROCE
+    ucs_queue_head_init(&self->pending_skb);
+#endif
     ucs_arbiter_group_init(&self->tx.pending.group);
     ucs_arbiter_elem_init(&self->tx.pending.elem);
 
@@ -404,7 +421,7 @@ uct_ud_ep_pending_cancel_cb(ucs_arbiter_t *arbiter, ucs_arbiter_group_t *group,
     if (uct_ud_ep_is_last_pending_elem(ep, elem)) {
         uct_ud_ep_remove_has_pending_flag(ep);
     }
-
+     
     /* return ignored by arbiter */
     return UCS_ARBITER_CB_RESULT_REMOVE_ELEM;
 }
@@ -421,6 +438,7 @@ static UCS_CLASS_CLEANUP_FUNC(uct_ud_ep_t)
 
     ucs_trace_func("ep=%p id=%d conn_sn=%d", self, self->ep_id, self->conn_sn);
 
+    uct_ud_ep_pskb_free(self);
     uct_ud_enter(iface);
 
     ucs_callbackq_remove_if(&iface->super.super.worker->super.progress_q,
@@ -619,7 +637,7 @@ ucs_status_t uct_ud_ep_connect_to_ep(uct_ep_h tl_ep,
 
 static UCS_F_ALWAYS_INLINE void
 uct_ud_ep_process_ack(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
-                      uct_ud_psn_t ack_psn, int is_async)
+                      uct_ud_psn_t ack_psn, int is_async, int dummy_ack)
 {
     /* Ignore duplicate ACK */
     if (ucs_unlikely(UCT_UD_PSN_COMPARE(ack_psn, <=, ep->tx.acked_psn))) {
@@ -628,7 +646,7 @@ uct_ud_ep_process_ack(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
 
     ep->tx.acked_psn = ack_psn;
 
-    uct_ud_ep_window_release_inline(iface, ep, ack_psn, UCS_OK, is_async, 0);
+    uct_ud_ep_window_release_inline(iface, ep, ack_psn, UCS_OK, is_async, 0, dummy_ack);
     uct_ud_ep_ca_ack(ep);
     uct_ud_ep_resend_ack(iface, ep);
 
@@ -708,7 +726,7 @@ static void uct_ud_ep_rx_creq(uct_ud_iface_t *iface, uct_ud_neth_t *neth)
                 /* our own creq was sent, treat incoming creq as ack and remove our own
                  * from tx window
                  */
-                uct_ud_ep_process_ack(iface, ep, UCT_UD_INITIAL_PSN, 0);
+                uct_ud_ep_process_ack(iface, ep, UCT_UD_INITIAL_PSN, 0, 1);
             }
             uct_ud_ep_ctl_op_add(iface, ep, UCT_UD_EP_OP_CREP);
         }
@@ -740,6 +758,7 @@ static void uct_ud_ep_rx_creq(uct_ud_iface_t *iface, uct_ud_neth_t *neth)
     /* scedule connection reply op */
     UCT_UD_EP_HOOK_CALL_RX(ep, neth, sizeof(*neth) + sizeof(*ctl));
     if (uct_ud_ep_ctl_op_check(ep, UCT_UD_EP_OP_CREQ)) {
+        uct_ud_ep_pskb_free(ep);
         uct_ud_ep_set_state(ep, UCT_UD_EP_FLAG_CREQ_NOTSENT);
     }
     uct_ud_ep_ctl_op_del(ep, UCT_UD_EP_OP_CREQ);
@@ -766,6 +785,8 @@ static void uct_ud_ep_rx_ctl(uct_ud_iface_t *iface, uct_ud_ep_t *ep,
     if (UCT_UD_PSN_COMPARE(neth->psn, <, ep->rx.ooo_pkts.head_sn)) {
         return;
     }
+
+    uct_ud_ep_pskb_free(ep);
 
     ep->rx.ooo_pkts.head_sn = neth->psn;
     uct_ud_ep_set_dest_ep_id(ep, ctl->conn_rep.src_ep_id);
@@ -861,7 +882,7 @@ void uct_ud_ep_process_rx(uct_ud_iface_t *iface, uct_ud_neth_t *neth, unsigned b
     ucs_assert(ep->ep_id != UCT_UD_EP_NULL_ID);
     UCT_UD_EP_HOOK_CALL_RX(ep, neth, byte_len);
 
-    uct_ud_ep_process_ack(iface, ep, neth->ack_psn, is_async);
+    uct_ud_ep_process_ack(iface, ep, neth->ack_psn, is_async, 0);
 
     if (ucs_unlikely(neth->packet_type & UCT_UD_PACKET_FLAG_ACK_REQ)) {
         uct_ud_ep_ctl_op_add(iface, ep, UCT_UD_EP_OP_ACK);
@@ -1096,6 +1117,7 @@ static uct_ud_send_skb_t *uct_ud_ep_prepare_crep(uct_ud_ep_t *ep)
     crep = (uct_ud_ctl_hdr_t *)(neth + 1);
 
     crep->type               = UCT_UD_PACKET_CREP;
+    memset(&crep->conn_rep, 0, sizeof(crep->conn_rep));
     crep->conn_rep.src_ep_id = ep->ep_id;
 
     uct_ud_peer_name(ucs_unaligned_ptr(&crep->peer));
