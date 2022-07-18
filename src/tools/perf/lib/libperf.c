@@ -1890,6 +1890,17 @@ ucs_status_t ucx_perf_run(const ucx_perf_params_t *params,
             perf->ucp.rkey        = perf->ucp.tctx[0].perf.ucp.rkey;
         }
 
+         //go to test Packet Aggregation
+        if (params->test_type  == UCX_PERF_TEST_PA || params->test_type  == UCX_PERF_TEST_PA_AM)
+        {
+            ucx_perf_set_warmup(perf, params);
+            status = ucx_perf_funcs[params->api].run(perf);
+            if (status != UCS_OK) {
+                goto out_cleanup;
+            }
+            goto out_cleanup;
+        }
+
         if (params->warmup_iter > 0) {
             ucx_perf_set_warmup(perf, params);
             status = ucx_perf_funcs[params->api].run(perf);
