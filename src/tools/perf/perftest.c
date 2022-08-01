@@ -53,6 +53,9 @@ enum {
     TEST_FLAG_PRINT_CSV     = UCS_BIT(11)
 };
 
+//var - add bool to checking server(F) or client(T)
+char client_or_server_bool= 'F';
+
 typedef struct sock_rte_group {
     int                          is_server;
     int                          connfd;
@@ -169,9 +172,52 @@ test_type_t tests[] = {
     {"ucp_am_bw", UCX_PERF_API_UCP, UCX_PERF_CMD_AM, UCX_PERF_TEST_TYPE_STREAM_UNI,
      "am bandwidth / message rate", "overhead", 32},
 
+    //test packet aggregation tests define settings
+    //tag test
+    {"ucp_tag_test", UCX_PERF_API_UCP, UCX_PERF_CMD_TAG, UCX_PERF_TEST_PA,
+     "am latency", "latency", 1},
+    //stream test
+    {"ucp_str_test", UCX_PERF_API_UCP, UCX_PERF_CMD_STREAM, UCX_PERF_TEST_PA,
+     "am latency", "latency", 1},
+    //am test
+    {"ucp_am_test", UCX_PERF_API_UCP, UCX_PERF_CMD_AM, UCX_PERF_TEST_PA_AM,
+     "am latency", "latency", 1},
+
     {NULL}
 };
+/*
+    This function checks our parameters
+    If the sum of the parameters is different 100
+    Returns an error
+    Otherwise continues
+*/
+int tests_checking_parameters(struct perftest_context *ctx){
+    int sum = ctx->params.super.tests_params.very_small_packets_Percentage  +
+              ctx->params.super.tests_params.small_packets_Percentage       +
+              ctx->params.super.tests_params.medium_packets_Percentage      +
+              ctx->params.super.tests_params.large_packets_Percentage;
+    printf("the sum %d\n",sum);
+    if ( ctx->params.super.tests_params.total_num__of_packets          <= 0 ||
+         ctx->params.super.tests_params.very_small_packets_Percentage  <  0 ||
+         ctx->params.super.tests_params.small_packets_Percentage                 <  0 ||
+         ctx->params.super.tests_params.medium_packets_Percentage      <  0 ||
+         ctx->params.super.tests_params.large_packets_Percentage       <  0 )
+    {
+        return 0;
+    }
 
+    if (sum == 0){
+        ctx->params.super.tests_params.very_small_packets_Percentage  = 25;
+        ctx->params.super.tests_params.small_packets_Percentage       = 25;
+        ctx->params.super.tests_params.medium_packets_Percentage      = 25;
+        ctx->params.super.tests_params.large_packets_Percentage       = 25;
+        return 1;
+    }
+    else if (sum == 100)
+        return 1;
+    else
+        return 0;
+}
 static int sock_io(int sock, ssize_t (*sock_call)(int, void *, size_t, int),
                    int poll_events, void *data, size_t size,
                    void (*progress)(void *arg), void *arg, const char *name)
@@ -661,6 +707,7 @@ static ucs_status_t parse_test_params(perftest_params_t *params, char opt,
                           sizeof(params->super.uct.tl_name), "%s", opt_arg);
         return UCS_OK;
     case 't':
+        client_or_server_bool= 'T'; // client_or_server_bool is client
         for (i = 0; tests[i].name != NULL; ++i) {
             test = &tests[i];
             if (!strcmp(opt_arg, test->name)) {
@@ -937,6 +984,14 @@ static ucs_status_t parse_opts(struct perftest_context *ctx, int mpi_initialized
     ctx->flags                  = 0;
     ctx->mpi                    = mpi_initialized;
 
+    //Add default parameters
+    //If the client has not added parameters
+    ctx->params.super.tests_params.total_num__of_packets         = 1000;
+    ctx->params.super.tests_params.very_small_packets_Percentage  = 0;
+    ctx->params.super.tests_params.small_packets_Percentage       = 0;
+    ctx->params.super.tests_params.medium_packets_Percentage      = 0;
+    ctx->params.super.tests_params.large_packets_Percentage       = 0;
+
     optind = 1;
     while ((c = getopt (argc, argv, "p:b:Nfvc:P:h" TEST_PARAMS_ARGS)) != -1) {
         switch (c) {
@@ -981,7 +1036,31 @@ static ucs_status_t parse_opts(struct perftest_context *ctx, int mpi_initialized
             break;
         }
     }
+    //tests arguments
+    //find arguments to use for tests Packet Aggregation
+    // add arguments to tests_params struct
+    for(int i = 0; i < argc ; i++ ){
+        if (strcmp(argv[i],"tp") == 0)
+            ctx->params.super.tests_params.total_num__of_packets =  atoi(argv[i+1]);
+        else if (strcmp(argv[i],"vp") == 0)
+            ctx->params.super.tests_params.very_small_packets_Percentage = atoi(argv[i+1]);
+        else if (strcmp(argv[i],"sp") == 0)
+            ctx->params.super.tests_params.small_packets_Percentage = atoi(argv[i+1]);
+        else if (strcmp(argv[i],"mp") == 0)
+            ctx->params.super.tests_params.medium_packets_Percentage = atoi(argv[i+1]);
+        else if (strcmp(argv[i],"lp") == 0)
+            ctx->params.super.tests_params.large_packets_Percentage = atoi(argv[i+1]);
+    }
 
+    // if is T is client settings
+    // if is F is server
+    //its work only if is client Because only the client enters the parameters
+     if (client_or_server_bool == 'T'){
+        if(!tests_checking_parameters(ctx)){
+            ucs_error("Tests error -  checking Parameters");
+            return UCS_ERR_INVALID_PARAM;
+        }
+    }
     if (optind < argc) {
         ctx->server_addr = argv[optind];
     }
@@ -1720,6 +1799,15 @@ static ucs_status_t run_test(struct perftest_context *ctx)
         if (status != UCS_OK) {
             return status;
         }
+    }
+    //if is packet aggregation tests is cancel defult print
+    if (ctx->params.super.test_type  == UCX_PERF_TEST_PA || ctx->params.super.test_type  == UCX_PERF_TEST_PA_AM)
+    {
+        status = run_test_recurs(ctx, &ctx->params, 0);
+        if (status != UCS_OK) {
+            ucs_error("Failed to run test: %s", ucs_status_string(status));
+        }
+        return status;
     }
 
     print_header(ctx);

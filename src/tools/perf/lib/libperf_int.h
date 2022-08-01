@@ -232,5 +232,29 @@ size_t ucx_perf_get_message_size(const ucx_perf_params_t *params)
 }
 
 END_C_DECLS
-
+//========   add header func ==========
+//free all memory allocation
+void test_pa_free(ucp_test_pa_struct* buff , uint16_t size);
+//Random number between 1-4 between different type of packages
+int test_pa_random_number_index(int vsmall,int small,int medium,int large);
+//Random number between 1-4 between different sizes of packages
+int test_pa_random_number(int i);
+//Create packages and fill content at random
+ucp_test_pa_struct* test_pa_fill_messages(uint16_t dest,int vsmall,int small,int medium,int large);
+//We get percent parameters and this function converts the parameters from percent to units
+void test_pa_percentage_to_unit(ucx_perf_context_t m_perf,int* total,int* vsmall,int* small,int* medium,int* large);
+//delay time
+void test_pa_delay(int sec);
+//Print the contents of the package we received
+void test_pa_print_packages(char* package,int size);
+//Print the test results
+void test_pa_print_summary(clock_t time1_start,clock_t time1_end,clock_t time2_start,clock_t time2_end,
+                   int Total,int vsp,int sp,int mp,int lp);
+//Fill out the BUFF for test 1
+//Fill one package and send direct
+int test_pa_fill_package_test1(ucp_test_pa_struct* buff,char* package);
+//Fill out the BUFF for test 2
+//Fill in the BUFF if there is space and it adds Otherwise he is a messenger
+int test_pa_fill_package_test2(ucp_test_pa_struct* buff,char* package,uint16_t* size);
 #endif
+

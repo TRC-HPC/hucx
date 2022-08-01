@@ -19,7 +19,24 @@ BEGIN_C_DECLS
 #include <uct/api/uct.h>
 #include <ucp/api/ucp.h>
 
-
+// ======== add to Test struct -   strat ===========
+typedef struct{
+    int total_num__of_packets ;
+    int very_small_packets_Percentage;
+    int small_packets_Percentage;
+    int medium_packets_Percentage;
+    int large_packets_Percentage ;
+} tests_pa_params ;
+typedef struct {
+    uint16_t dest_coll_id;  /* destination identifier */
+    uint16_t  next_size;     /* offset to the next header (in bytes) */
+    uint8_t  am_handler_id; /* Active Message ID from @ref ucp_am_id_t */
+} UCS_S_PACKED ucp_pagg_hdr_t;
+typedef struct {
+    ucp_pagg_hdr_t ucp_t;
+    char *message; //for send messagess
+}ucp_test_pa_struct;
+// ======== add to Test struct -  end ===========
 typedef enum {
     UCX_PERF_API_UCT,
     UCX_PERF_API_UCP,
@@ -44,10 +61,11 @@ typedef enum {
 
 typedef enum {
     UCX_PERF_TEST_TYPE_PINGPONG,         /* Ping-pong mode */
-    UCX_PERF_TEST_TYPE_PINGPONG_WAIT_MEM,/* Ping-pong mode with
-                                            ucp_worker_wait_mem() */
+    UCX_PERF_TEST_TYPE_PINGPONG_WAIT_MEM,/* Ping-pong mode with ucp_worker_wait_mem() */
     UCX_PERF_TEST_TYPE_STREAM_UNI,       /* Unidirectional stream */
     UCX_PERF_TEST_TYPE_STREAM_BI,        /* Bidirectional stream */
+    UCX_PERF_TEST_PA,                   /* test Packet Aggregation */
+    UCX_PERF_TEST_PA_AM,                   /* test AM Packet Aggregation */
     UCX_PERF_TEST_TYPE_LAST
 } ucx_perf_test_type_t;
 
@@ -219,7 +237,7 @@ typedef struct ucx_perf_params {
         size_t                 am_hdr_size; /* UCP Active Message header size
                                                (not included in message size) */
     } ucp;
-
+    tests_pa_params tests_params; //test params
 } ucx_perf_params_t;
 
 
