@@ -277,6 +277,7 @@ ucp_put_common(ucp_ep_h ep, ucp_worker_h worker, const void *buffer,
 void ucp_append_amo_cb(void *request, ucs_status_t status, void *user_data)
 {
     ucp_request_t *req        = request;
+    req = req - 1;
     ucp_request_param_t param = {
         .op_attr_mask         = UCP_OP_ATTR_FIELD_REQUEST,
         .request              = request

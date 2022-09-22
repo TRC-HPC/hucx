@@ -385,6 +385,7 @@ AC_CONFIG_FILES([
                  bindings/java/pom.xml
                  bindings/java/src/main/native/Makefile
                  examples/Makefile
+                 offset/Makefile
                  cmake/Makefile
                  cmake/ucx-config-version.cmake
                  cmake/ucx-config.cmake

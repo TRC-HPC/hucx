@@ -57,7 +57,8 @@ SUBDIRS += \
 	bindings/go \
 	bindings/java \
 	test/apps \
-	examples \
+	examples \	
+  offset \
 	cmake
 
 if HAVE_GTEST

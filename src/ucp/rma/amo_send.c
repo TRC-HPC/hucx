@@ -385,16 +385,19 @@ ucs_status_ptr_t ucp_append_nbx(ucp_ep_h ep, const void *buffer, size_t count,
                                 ucp_rkey_h data_rkey, uint64_t *result_addr,
                                 const ucp_request_param_t *param)
 {
+    size_t contig_length = 0;
     ucp_worker_h worker = ep->worker;
     ucs_status_ptr_t status_p;
     ucs_status_t status;
     ucp_request_t *req;
+    uintptr_t datatype;
 
-    UCP_RMA_CHECK_CONTIG1(param);
+    //UCP_RMA_CHECK_CONTIG1(param);
     UCP_RMA_CHECK_PTR(worker->context, buffer, count);
-    UCP_AMO_CHECK_PARAM_NBX(worker->context, remote_ptr_addr, sizeof(void*),
-                            count, 0, UCP_ATOMIC_OP_LAST,
-                            return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
+    UCP_AMO_CHECK_PARAM(worker->context, remote_ptr_addr, sizeof(void*), 0,
+                        UCP_ATOMIC_OP_LAST,
+                        return UCS_STATUS_PTR(UCS_ERR_INVALID_PARAM));
+
     UCP_WORKER_THREAD_CS_ENTER_CONDITIONAL(ep->worker);
 
     ucs_trace_req("append_nbx buffer %p count %zu remote_addr %"PRIx64
@@ -414,8 +417,17 @@ ucs_status_ptr_t ucp_append_nbx(ucp_ep_h ep, const void *buffer, size_t count,
                                 {status_p = UCS_STATUS_PTR(UCS_ERR_NO_MEMORY);
                                  goto out;});
 
+    if (ucs_unlikely(param->op_attr_mask & UCP_OP_ATTR_FIELD_DATATYPE)) {
+        datatype = param->datatype;
+        if (UCP_DT_IS_CONTIG(datatype)) {
+            contig_length = ucp_contig_dt_length(datatype, count);
+        }
+    } else {
+        contig_length = count;
+    }
+
     ucp_amo_init_append(req, ep, result_addr, remote_ptr_addr, ptr_rkey,
-                        data_rkey, buffer, count, ptr_rkey->cache.amo_proto);
+                        data_rkey, buffer, contig_length, ptr_rkey->cache.amo_proto);
 
     status_p = ucp_rma_send_request_cb(req,
                                        (ucp_send_callback_t)ucp_append_amo_cb);
@@ -427,6 +439,7 @@ ucs_status_ptr_t ucp_append_nbx(ucp_ep_h ep, const void *buffer, size_t count,
 out:
     UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(ep->worker);
     return status_p;
+
 }
 
 UCS_PROFILE_FUNC(ucs_status_t, ucp_append,
